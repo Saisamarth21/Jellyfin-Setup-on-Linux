@@ -50,26 +50,54 @@ sudo setfacl -m u:jellyfin:rx /media/movies
 
 Place or copy your movie files into the `/media/movies` folder.
 
-### 3. Configure Windows Port Proxy
+### 3. Configure Windows Port Proxy (important: full example & how to find WSL IP)
 
-Since Jellyfin runs in WSL, it’s on a virtual network. To allow mobile devices to connect, forward the port from your Windows host to WSL:
+Because WSL runs on a virtual network, you must forward the Jellyfin port from your Windows host to WSL so other devices on your LAN can connect.
 
 1. **Find your Windows LAN IP**  
     Run `ipconfig` in a Command Prompt (look for your Wi‑Fi adapter IPv4, e.g., `192.168.1.9`).
     
-2. **Set up the port proxy (run as Administrator):**
-    
-    First, remove any existing rule (if applicable):
-
+2. **Find your WSL (Ubuntu) IP**
+    Open your WSL Ubuntu terminal and run either:
+   
 ```bash
+# Recommended (works in all modern distros)
+ip addr show eth0
+
+# or, if ifconfig is installed:
+ifconfig eth0
+```
+Look for the `inet` address on `eth0` — that is your WSL IP (e.g. `192.168.36.122`). We'll call this `WSL_IP`.
+
+    
+3.  **Add the port proxy rule (run Command Prompt or PowerShell as Administrator)**
+    First, remove any old rule (optional but safe):
+
+```
 netsh interface portproxy delete v4tov4 listenport=8096 listenaddress=0.0.0.0
 ```
 
-Then add a new rule (replace `192.168.1.9` with your actual Windows LAN IP and confirm your WSL IP is correct, e.g., `192.168.36.122`):
+Now add the rule — replace the example IPs with yours:
 
-    
-3.  **Firewall Considerations:**  
-    Ensure that Windows Defender Firewall allows inbound connections on TCP port 8096. You may need to create an inbound rule for this port.
+```
+netsh interface portproxy add v4tov4 listenport=8096 listenaddress=192.168.1.9 connectport=8096 connectaddress=192.168.36.122
+```
+
+- listenaddress = your Windows LAN IP (WINDOWS_LAN_IP)
+
+- connectaddress = your WSL IP (WSL_IP)
+
+- Both ports set to 8096 (default Jellyfin HTTP). Change if you use a different port.
+
+4.  **Make sure Windows Firewall allows the port**
+Create an inbound firewall rule (run as Administrator):
+
+
+```
+netsh advfirewall firewall add rule name="Jellyfin 8096" dir=in action=allow protocol=TCP localport=8096
+```
+
+Or manually add an inbound rule in Windows Defender Firewall for TCP port 8096.
 
 ## Usage
 
